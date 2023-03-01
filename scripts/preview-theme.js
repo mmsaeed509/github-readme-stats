@@ -44,6 +44,9 @@ const REQUIRED_COLOR_PROPS = ACCEPTED_COLOR_PROPS.slice(0, 4);
 const INVALID_REVIEW_COMMENT = (commentUrl) =>
   `Some themes are invalid. See the [Automated Theme Preview](${commentUrl}) comment above for more information.`;
 
+// Retrieve octokit instance.
+const OCTOKIT = github.getOctokit(getGithubToken());
+
 /**
  * Retrieve PR number from the event payload.
  *
@@ -298,12 +301,13 @@ const themeNameAlreadyExists = (name) => {
   return themes[name] !== undefined;
 };
 
+const DRY_RUN = process.env.DRY_RUN === "true" || false;
+
 /**
  * Main function.
  */
 export const run = async (prNumber) => {
   try {
-    const dryRun = process.env.DRY_RUN === "true" || false;
     debug("Retrieve action information from context...");
     debug(`Context: ${inspect(github.context)}`);
     let commentBody = `
@@ -311,7 +315,6 @@ export const run = async (prNumber) => {
       \r${THEME_CONTRIB_GUIDELINESS}
     `;
     const ccc = new ColorContrastChecker();
-    const octokit = github.getOctokit(getGithubToken());
     const pullRequestId = prNumber ? prNumber : getPrNumber();
     const commenter = getCommenter();
     const { owner, repo } = getRepoInfo(github.context);
@@ -321,7 +324,7 @@ export const run = async (prNumber) => {
 
     // Retrieve the PR diff and preview-theme comment.
     debug("Retrieve PR diff...");
-    const res = await octokit.pulls.get({
+    const res = await OCTOKIT.pulls.get({
       owner,
       repo,
       pull_number: pullRequestId,
@@ -331,7 +334,7 @@ export const run = async (prNumber) => {
     });
     debug("Retrieve preview-theme comment...");
     const comment = await findComment(
-      octokit,
+      OCTOKIT,
       pullRequestId,
       owner,
       repo,
@@ -513,8 +516,8 @@ export const run = async (prNumber) => {
     // Create or update theme-preview comment.
     debug("Create or update theme-preview comment...");
     let comment_url;
-    if (!dryRun) {
-      comment_url = await upsertComment(octokit, {
+    if (!DRY_RUN) {
+      comment_url = await upsertComment(OCTOKIT, {
         comment_id: comment?.id,
         issue_number: pullRequestId,
         owner,
@@ -535,9 +538,9 @@ export const run = async (prNumber) => {
     const reviewReason = themesValid
       ? undefined
       : INVALID_REVIEW_COMMENT(comment_url);
-    if (!dryRun) {
+    if (!DRY_RUN) {
       await addReview(
-        octokit,
+        OCTOKIT,
         pullRequestId,
         owner,
         repo,
@@ -545,7 +548,7 @@ export const run = async (prNumber) => {
         reviewReason,
       );
       await addRemoveLabel(
-        octokit,
+        OCTOKIT,
         pullRequestId,
         owner,
         repo,
@@ -558,9 +561,9 @@ export const run = async (prNumber) => {
     }
   } catch (error) {
     debug("Set review state to `REQUEST_CHANGES` and add `invalid` label...");
-    if (!dryRun) {
+    if (!DRY_RUN) {
       await addReview(
-        octokit,
+        OCTOKIT,
         pullRequestId,
         owner,
         repo,
@@ -568,7 +571,7 @@ export const run = async (prNumber) => {
         error.message,
       );
       await addRemoveLabel(
-        octokit,
+        OCTOKIT,
         pullRequestId,
         owner,
         repo,
