@@ -1,5 +1,14 @@
+---
+
+# 
+#  @author      : 00xWolf
+#    GitHub    : @mmsaeed509
+#    Developer : Mahmoud Mohamed
+#  﫥  Copyright : Mahmoud Mohamed
+#
+
 version: "1"
 rules:
   - base: master
-    upstream: anuraghazra:master    # change `wei` to the owner of upstream repo
-    mergeMethod: hardreset
+    upstream: anuraghazra:master
+    mergeMethod: push
